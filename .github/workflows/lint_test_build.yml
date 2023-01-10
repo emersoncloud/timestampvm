@@ -1,0 +1,72 @@
+name: Lint+Test+Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.4
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2.5.2
+        with:
+          version: v1.47
+
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v2.3.4
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+      - name: build_test
+        shell: bash
+        run: .github/workflows/build_and_test.sh
+
+  e2e-test:
+    name: E2E Test
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+      - name: Run e2e tests
+        shell: bash
+        run: scripts/run.sh
+        env:
+          E2E: true
+  
+  load-test:
+    name: Load Test
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+      - name: Run load tests
+        shell: bash
+        run: scripts/tests.load.sh
+        env:
+          TERMINAL_HEIGHT: 1000 # Set the terminal height for the load test to reach before terminating.
